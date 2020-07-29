@@ -14,10 +14,13 @@ struct PList: ParsableCommand {
     var new = false
     
     @Option()
-    var output = false
+    var output = true
     
     @Option()
-    var addValues = false
+    var addValues = true
+    
+    @Option()
+    var editMode = false
     
     @Argument()
     var filePath: String
@@ -29,9 +32,6 @@ struct PList: ParsableCommand {
     var value: String?
     
     mutating func createNewFile() throws {
-        if !filePath.hasPrefix(".plist") {
-            filePath.append(".plist")
-        }
         let contents = try PropertyListEncoder().encode(MockPList())
         // Create and add key-value
         FileManager.default.createFile(atPath: filePath, contents: contents, attributes: [:])
@@ -51,14 +51,14 @@ struct PList: ParsableCommand {
                 throw PListError.noPList
         }
         
-        guard let key = key else {
-            throw PListError.noKey
-        }
-        
-        if addValues {
-            dictionary[key] = value
-        } else if let _ = dictionary[key] {
-            dictionary[key] = value
+        if let key = key {
+            if addValues {
+                dictionary[key] = value
+            } else if let _ = dictionary[key] {
+                dictionary[key] = value
+            }
+
+            (dictionary as NSDictionary).write(toFile: filePath, atomically: true)
         }
         
         if output {
@@ -67,6 +67,10 @@ struct PList: ParsableCommand {
     }
     
     mutating func run() throws {
+        if !filePath.hasSuffix(".plist") {
+            filePath.append(".plist")
+        }
+        
         guard !new else {
             return try createNewFile()
         }
@@ -76,6 +80,23 @@ struct PList: ParsableCommand {
         }
         
         try editPList(file: file)
+        
+        if editMode {
+            while true {
+                guard let command = readLine(strippingNewline: true) else {
+                    break
+                }
+                
+                switch command {
+                case "new":
+                    print("Add new value")
+                case "delete":
+                    print("Delete value")
+                default:
+                    print("Not a value command\n:")
+                }
+            }
+        }
     }
 }
 
